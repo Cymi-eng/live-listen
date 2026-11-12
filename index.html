@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Live Stream</title>
+<title>Moi University Worship Experience</title>
 <style>
   :root { --bg:#f6f7f9; --card:#fff; --text:#111827; --muted:#6b7280; --accent:#2563eb; }
   @media (prefers-color-scheme: dark) {
@@ -27,12 +27,12 @@
 </head>
 <body>
 <div class="card">
-  <h1>🎧 Live Stream</h1>
+  <h1>🎧 Moi University Worship Experience</h1>
   <div id="status">Connecting…</div>
   <video id="player" controls playsinline></video>
   <div id="setup" hidden>
-    <input id="url" placeholder="Paste stream URL (…/live/index.m3u8)">
-    <button id="go">Start</button>
+    <input id="url" placeholder="Paste the stream link here">
+    <button id="go">Listen</button>
   </div>
 </div>
 
@@ -45,6 +45,14 @@
 
   function setStatus(html) { statusEl.innerHTML = html; }
 
+  // Accepts the full link or just the main address; adds the rest if missing
+  function normalize(link) {
+    link = link.trim().replace(/\/+$/, '');
+    if (!/^https?:\/\//i.test(link)) link = 'https://' + link;
+    if (!/\.m3u8$/i.test(link)) link += '/live/index.m3u8';
+    return link;
+  }
+
   function start(src) {
     clearTimeout(retryTimer);
     if (hls) hls.destroy();
@@ -55,18 +63,19 @@
       hls.loadSource(src);
       hls.attachMedia(video);
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        setStatus('<span class="live"></span>Live — press play');
+        setStatus('<span class="live"></span>Live — press play to listen');
         video.play().catch(() => {});
       });
       hls.on(Hls.Events.ERROR, (_, data) => {
         if (data.fatal) {
-          setStatus('Stream not live yet… retrying');
+          setStatus('Worship has not started yet… please wait');
           retryTimer = setTimeout(() => start(src), 4000);
         }
       });
     } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
       video.src = src; // Safari / iOS
-      video.addEventListener('loadedmetadata', () => setStatus('<span class="live"></span>Live — press play'));
+      video.addEventListener('loadedmetadata', () =>
+        setStatus('<span class="live"></span>Live — press play to listen'));
     } else {
       setStatus('Your browser does not support live playback.');
     }
@@ -74,13 +83,13 @@
 
   const param = new URLSearchParams(location.search).get('stream');
   if (param) {
-    start(param);
+    start(normalize(param));
   } else {
-    setStatus('Enter the stream URL to listen');
+    setStatus('Paste the stream link to listen');
     setup.hidden = false;
     document.getElementById('go').onclick = () => {
-      const v = document.getElementById('url').value.trim();
-      if (v) { setup.hidden = true; start(v); }
+      const v = document.getElementById('url').value;
+      if (v.trim()) { setup.hidden = true; start(normalize(v)); }
     };
   }
 </script>
