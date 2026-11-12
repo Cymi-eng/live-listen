@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Live Stream</title>
+<style>
+  :root { --bg:#f6f7f9; --card:#fff; --text:#111827; --muted:#6b7280; --accent:#2563eb; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#0f172a; --card:#1e293b; --text:#f1f5f9; --muted:#94a3b8; --accent:#3b82f6; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+         background:var(--bg); color:var(--text); font-family:system-ui,sans-serif; padding:16px; }
+  .card { background:var(--card); border-radius:16px; padding:28px; width:100%; max-width:480px;
+          box-shadow:0 4px 24px rgba(0,0,0,.12); text-align:center; }
+  h1 { margin:0 0 6px; font-size:1.4rem; }
+  #status { color:var(--muted); margin-bottom:18px; font-size:.95rem; }
+  .live { display:inline-block; width:10px; height:10px; border-radius:50%; background:#ef4444;
+          margin-right:6px; animation:pulse 1.2s infinite; }
+  @keyframes pulse { 50% { opacity:.3; } }
+  video { width:100%; border-radius:10px; background:#000; max-height:260px; }
+  button, input { font:inherit; border-radius:8px; border:1px solid var(--muted); padding:10px 14px; }
+  button { background:var(--accent); color:#fff; border:none; cursor:pointer; margin-top:12px; }
+  input { width:100%; background:transparent; color:var(--text); margin-top:12px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>🎧 Live Stream</h1>
+  <div id="status">Connecting…</div>
+  <video id="player" controls playsinline></video>
+  <div id="setup" hidden>
+    <input id="url" placeholder="Paste stream URL (…/live/index.m3u8)">
+    <button id="go">Start</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.13/hls.min.js"></script>
+<script>
+  const video = document.getElementById('player');
+  const statusEl = document.getElementById('status');
+  const setup = document.getElementById('setup');
+  let hls, retryTimer;
+
+  function setStatus(html) { statusEl.innerHTML = html; }
+
+  function start(src) {
+    clearTimeout(retryTimer);
+    if (hls) hls.destroy();
+    setStatus('Connecting…');
+
+    if (window.Hls && Hls.isSupported()) {
+      hls = new Hls({ lowLatencyMode: true });
+      hls.loadSource(src);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        setStatus('<span class="live"></span>Live — press play');
+        video.play().catch(() => {});
+      });
+      hls.on(Hls.Events.ERROR, (_, data) => {
+        if (data.fatal) {
+          setStatus('Stream not live yet… retrying');
+          retryTimer = setTimeout(() => start(src), 4000);
+        }
+      });
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = src; // Safari / iOS
+      video.addEventListener('loadedmetadata', () => setStatus('<span class="live"></span>Live — press play'));
+    } else {
+      setStatus('Your browser does not support live playback.');
+    }
+  }
+
+  const param = new URLSearchParams(location.search).get('stream');
+  if (param) {
+    start(param);
+  } else {
+    setStatus('Enter the stream URL to listen');
+    setup.hidden = false;
+    document.getElementById('go').onclick = () => {
+      const v = document.getElementById('url').value.trim();
+      if (v) { setup.hidden = true; start(v); }
+    };
+  }
+</script>
+</body>
+</html>
